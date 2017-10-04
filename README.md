@@ -8,7 +8,15 @@ Base on https://exchange.nagios.org/directory/Databases/Plugins/Oracle/check_ora
 * oracle instantclient (http://www.oracle.com/technetwork/database/features/instant-client/index-097480.html)
 
 
-## Installation
+## Setup
+
+Install python dependencies 
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
 
 Add oracle instaclient libs to **LD_LIBRARY_PATH**
 
