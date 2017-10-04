@@ -1,17 +1,29 @@
 #!/usr/bin/env python
-
-import cx_Oracle
+"""
+Check Oracle Tablespace size
+Base on https://exchange.nagios.org/directory/Databases/Plugins/Oracle/check_oracle_tbs/details
+"""
 import re
-import pprint
-import os
 import argparse
-import sys
+import cx_Oracle
 
-def main(dbhost, port, user, password, service_name, excluded_tables=None, warning_level=85, critical_level=95, check_autoextensible="false"):
+def main(dbhost, port, user, password, service_name, excluded_tables=None,
+         warning_level=85, critical_level=95, check_autoextensible="false"):
+    """Check Oracle Tablespace size
+    dbhost
+    port
+    user
+    password
+    service_name
+    excluded_tables: regex for tablespace exclusion (example: -e='UNDOTBS[0-9]')
+    warning_level: usage percent for warning alert
+    critical_level: usage percent for critical alert
+    check_autoextensible: check autoextensible tables also
+    """
 
     try:
-        dsnStr = cx_Oracle.makedsn(host=dbhost, port=port, service_name=service_name)
-        connection = cx_Oracle.connect(user=user, password=password, dsn=dsnStr)
+        dsn_string = cx_Oracle.makedsn(host=dbhost, port=port, service_name=service_name)
+        connection = cx_Oracle.connect(user=user, password=password, dsn=dsn_string)
 
         cursor = connection.cursor()
         cursor.execute("""
@@ -54,23 +66,21 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None, warni
 				c.tablespace_name (+) = b.tablespace_name
 		""")
 
-        if (excluded_tables):
+        if excluded_tables:
             regexp_exclude = re.compile('(%s)'%excluded_tables)
 
         remaining = 0
 
         for result in cursor:
-            '''
-                result[0] tablespace_name
-                result[1] pct_used
-                result[2] free
-                result[3] autoextensible
-            '''
+            #   result[0] tablespace_name
+            #    result[1] pct_used
+            #    result[2] free
+            #    result[3] autoextensible
 
             if not regexp_exclude.match(result[0]):
                 remaining += float(result[2])
 
-                if(check_autoextensible == 'false' and result[3] == 'YES'):
+                if check_autoextensible == 'false' and result[3] == 'YES':
                     print "skiping autoextensible table %s" % (result[0])
                     continue
 
@@ -84,26 +94,35 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None, warni
 
         print "Remaining free space = (%.2fMb)" % remaining
 
-    except Exception as e:
-        print e
+    except Exception as exception:
+        print "Error: %s" % format(exception)
+        raise
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Check Oracle Tablespace size')
 
-    parser.add_argument('--db_host', required=True, dest='db_host' ,metavar='db_host', type=str, help="Oracle host")
-    parser.add_argument('--db_port', required=True, dest='db_port' ,metavar='db_port', type=str, help="Oracle port")
-    parser.add_argument('--db_user', required=True, dest='db_user', metavar='db_user', type=str, help="Oracle user")
-    parser.add_argument('--db_password', required=True, dest='db_password', metavar='db_password', type=str, help="Oracle password")
+    parser.add_argument('--db_host', required=True, dest='db_host',
+                        metavar='db_host', type=str, help="Oracle host")
+    parser.add_argument('--db_port', required=True, dest='db_port',
+                        metavar='db_port', type=str, help="Oracle port")
+    parser.add_argument('--db_user', required=True, dest='db_user',
+                        metavar='db_user', type=str, help="Oracle user")
+    parser.add_argument('--db_password', required=True, dest='db_password',
+                        metavar='db_password', type=str, help="Oracle password")
+    parser.add_argument('--db_service_name', required=True, dest='db_service_name',
+                        metavar='db_service_name', type=str, help="Oracle service_name")
+    parser.add_argument('-e', metavar='exclusion', dest='exclusion', type=str,
+                        help="regex for tablespace exclusion (example: -e='UNDOTBS[0-9]')")
+    parser.add_argument('-w', metavar='warning', dest='warning_level',
+                        default=85.0, type=float, help="usage percent for warning")
+    parser.add_argument('-c', metavar='critical', dest='critical_level',
+                        default=95.0, type=float, help="usage percent for critical alert")
+    parser.add_argument('-wauto', metavar='wauto', dest='wauto', type=str,
+                        help="usage percent for warning on autoextensible tablespaces (true|false)")
 
-    parser.add_argument('--db_service_name', required=True, dest='db_service_name', metavar='db_service_name', type=str, help="Oracle service_name")
-    parser.add_argument('-e', metavar='exclusion', dest='exclusion', type=str, help="regex for tablespace exclusion (example: -e='UNDOTBS[0-9]')")
-    parser.add_argument('-w', metavar='warning', dest='warning_level', default=85.0, type=float, help="usage percent for warning")
-    parser.add_argument('-c', metavar='critical', dest='critical_level', default=95.0, type=float, help="usage percent for critical alert")
-    parser.add_argument('-wauto', metavar='wauto', dest='wauto', type=str, help="usage percent for warning on autoextensible tablespaces (true|false)")
+    args_obj = parser.parse_args()
 
-    args = parser.parse_args()
-
-    main(args.db_host, args.db_port, args.db_user, args.db_password,
-        args.db_service_name, args.exclusion,
-        args.warning_level, args.critical_level, args.wauto)
+    main(args_obj.db_host, args_obj.db_port, args_obj.db_user, args_obj.db_password,
+         args_obj.db_service_name, args_obj.exclusion, args_obj.warning_level,
+         args_obj.critical_level, args_obj.wauto)
