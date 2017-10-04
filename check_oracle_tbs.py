@@ -7,9 +7,7 @@ import os
 import argparse
 import sys
 
-def main(dbhost, port, user, password, service_name, excluded_tables=None, warning_level=85, critical_level=95, check_autoextensible=True):
-
-    print "warning: %s critical: %s" % (warning_level, critical_level)
+def main(dbhost, port, user, password, service_name, excluded_tables=None, warning_level=85, critical_level=95, check_autoextensible="false"):
 
     try:
         dsnStr = cx_Oracle.makedsn(host=dbhost, port=port, service_name=service_name)
@@ -71,23 +69,27 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None, warni
 
             if not regexp_exclude.match(result[0]):
                 remaining += float(result[2])
-                
+
+                if(check_autoextensible == 'false' and result[3] == 'YES'):
+                    print "skiping autoextensible table %s" % (result[0])
+                    continue
+
                 if float(result[1]) >= critical_level:
-                    print "%s CRITICAL %.2f" % (result[0], result[1])
+                    print "%s CRITICAL %.2f autoextensible(%s)" % (result[0], result[1], result[3])
                     continue
 
                 if float(result[1]) >= warning_level:
-                    print "%s WARNING %.2f" % (result[0], result[1])
+                    print "%s WARNING %.2f autoextensible(%s)" % (result[0], result[1], result[3])
                     continue
 
-        print "Remaining free space = %.2fMb" % remaining
+        print "Remaining free space = (%.2fMb)" % remaining
 
     except Exception as e:
         print e
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Check tablespace size')
+    parser = argparse.ArgumentParser(description='Check Oracle Tablespace size')
 
     parser.add_argument('--db_host', required=True, dest='db_host' ,metavar='db_host', type=str, help="Oracle host")
     parser.add_argument('--db_port', required=True, dest='db_port' ,metavar='db_port', type=str, help="Oracle port")
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', metavar='exclusion', dest='exclusion', type=str, help="regex for tablespace exclusion (example: -e='UNDOTBS[0-9]')")
     parser.add_argument('-w', metavar='warning', dest='warning_level', default=85.0, type=float, help="usage percent for warning")
     parser.add_argument('-c', metavar='critical', dest='critical_level', default=95.0, type=float, help="usage percent for critical alert")
-    parser.add_argument('-wauto', metavar='wauto', dest='wauto', type=bool, help="usage percent for warning on autoextensible tablespaces")
+    parser.add_argument('-wauto', metavar='wauto', dest='wauto', type=str, help="usage percent for warning on autoextensible tablespaces (true|false)")
 
     args = parser.parse_args()
 
