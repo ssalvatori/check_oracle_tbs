@@ -66,18 +66,16 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None,
 				c.tablespace_name (+) = b.tablespace_name
 		""")
 
+        regexp_exclude = None
+
         if excluded_tables:
             regexp_exclude = re.compile('(%s)'%excluded_tables)
 
         remaining = 0
 
         for result in cursor:
-            #   result[0] tablespace_name
-            #    result[1] pct_used
-            #    result[2] free
-            #    result[3] autoextensible
 
-            if not excluded_tables and not regexp_exclude.match(result[0]):
+            if excluded_tables is not None and not regexp_exclude.match(result[0]):
                 remaining += float(result[2])
 
                 if check_autoextensible == 'false' and result[3] == 'YES':
