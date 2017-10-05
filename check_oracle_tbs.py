@@ -77,7 +77,7 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None,
             #    result[2] free
             #    result[3] autoextensible
 
-            if not regexp_exclude.match(result[0]):
+            if not excluded_tables and not regexp_exclude.match(result[0]):
                 remaining += float(result[2])
 
                 if check_autoextensible == 'false' and result[3] == 'YES':
