@@ -6,9 +6,10 @@ Base on https://exchange.nagios.org/directory/Databases/Plugins/Oracle/check_ora
 import re
 import argparse
 import cx_Oracle
+import sys
 
 def main(dbhost, port, user, password, service_name, excluded_tables=None,
-         warning_level=85, critical_level=95, check_autoextensible="false"):
+         warning_level=85, critical_level=95, check_autoextensible="false", min_space=0.0):
     """Check Oracle Tablespace size
     dbhost
     port
@@ -19,6 +20,7 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None,
     warning_level: usage percent for warning alert
     critical_level: usage percent for critical alert
     check_autoextensible: check autoextensible tables also
+    min_space: script will return exit 1 if the free space is less than this value
     """
 
     try:
@@ -92,6 +94,10 @@ def main(dbhost, port, user, password, service_name, excluded_tables=None,
 
         print "Remaining free space = (%.2fMb)" % remaining
 
+        if min_space > 0 and remaining <= min_space:
+            print "Space is less than %.2fMb" % min_space
+            sys.exit(1)
+
     except Exception as exception:
         print "Error: %s" % format(exception)
         raise
@@ -118,9 +124,11 @@ if __name__ == "__main__":
                         default=95.0, type=float, help="usage percent for critical alert")
     parser.add_argument('-wauto', metavar='wauto', dest='wauto', type=str,
                         help="usage percent for warning on autoextensible tablespaces (true|false)")
+    parser.add_argument('-min_space', metavar='min_space', dest='min_space', type=float,
+                        help="script will return exit 1 if the free space is less or equal thsn this value")
 
     args_obj = parser.parse_args()
 
     main(args_obj.db_host, args_obj.db_port, args_obj.db_user, args_obj.db_password,
          args_obj.db_service_name, args_obj.exclusion, args_obj.warning_level,
-         args_obj.critical_level, args_obj.wauto)
+         args_obj.critical_level, args_obj.wauto, args_obj.min_space)
